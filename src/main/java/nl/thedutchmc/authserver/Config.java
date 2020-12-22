@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.lang3.SystemUtils;
@@ -15,6 +16,7 @@ import org.json.JSONObject;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 
+import nl.thedutchmc.authserver.auth.ApiManager;
 import nl.thedutchmc.authserver.runnables.RefreshToken;
 
 public class Config {
@@ -42,13 +44,13 @@ public class Config {
 	
 	public Config() {
 		//Determine the configuration directory
-		// For linux: /etc/espoGmailSync
-		// For Windows: C:\Program Files\Espo Gmail Sync
+		// For linux: /etc/authserver
+		// For Windows: C:\Program Files\AuthServer
 		// For other OS's: Directory where the JAR file of this program is located
 		if(SystemUtils.IS_OS_LINUX) {
-			configDirPath = "/etc/espoGmailSync";
+			configDirPath = "/etc/authserver";
 		} else if(SystemUtils.IS_OS_WINDOWS) {
-			configDirPath = "C:\\Program Files\\Espo Gmail Sync";
+			configDirPath = "C:\\Program Files\\AuthServer";
 		} else {
 			try {
 				final File jarPath = new File(Config.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath());
@@ -87,6 +89,7 @@ public class Config {
 				defaultConfig.put("mysqlDb", "");
 				defaultConfig.put("mysqlUser", "");
 				defaultConfig.put("mysqlPassword", "");
+				defaultConfig.put("validApiTokens", new JSONArray());
 						
 				bw.write(defaultConfig.toString());
 				bw.flush();
@@ -122,7 +125,15 @@ public class Config {
 		mysqlUser = configJson.getString("mysqlUser");
 		mysqlPassword = configJson.getString("mysqlPassword");
 		
-		App.logInfo("Completed reading configuration file.");
+		JSONArray validApiTokens = configJson.getJSONArray("validApiTokens");
+		List<String> validApiTokensList = new ArrayList<>();
+		for(Object o: validApiTokens) {
+			validApiTokensList.add((String) o);
+		}
+		
+		new ApiManager(validApiTokensList);
+		
+		App.logInfo("Completed reading configuration file."); 
 	}
 	
 	public void readStorage() {

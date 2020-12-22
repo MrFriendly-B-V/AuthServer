@@ -1,4 +1,4 @@
-package nl.thedutchmc.authserver.session;
+package nl.thedutchmc.authserver.auth;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -47,6 +47,35 @@ public class SessionManager {
 		}
 		
 		return false;
+	}
+	 
+	public User getUserForSessionId(String sessionId) {
+		User user = null;
+		for(Map.Entry<String, User> entry : App.userMap.entrySet()) {
+			User u = entry.getValue();
+			if(u.getSessionId() != null && u.getSessionId().equals(sessionId)) {
+				return u;
+			}
+		}
+		
+		final String statement = "SELECT id FROM users WHERE session='" + sessionId + "'";
+		SqlManager sqlManager = App.getSqlManager();
+		try {
+			ResultObject ro = sqlManager.executeStatement(StatementType.query, statement);
+			ResultSet rs = ro.getResultSet();
+						
+			while(rs.next()) {
+				String id = rs.getString("id");
+								
+				user = App.userMap.get(id);
+				return user;
+			}
+		} catch (SQLException e) {
+			App.logError("Something went wrong trying to get a user based on their sessionId, caused by a SQLException.");
+			App.logDebug(ExceptionUtils.getStackTrace(e));
+		}
+		
+		return null;
 	}
 	
 	public void createSession(String id, String token, String sessionId) {

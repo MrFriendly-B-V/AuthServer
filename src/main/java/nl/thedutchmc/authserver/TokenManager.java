@@ -13,8 +13,8 @@ import org.json.JSONObject;
 import nl.thedutchmc.authserver.Http.MediaFormat;
 import nl.thedutchmc.authserver.Http.RequestMethod;
 import nl.thedutchmc.authserver.Http.ResponseObject;
+import nl.thedutchmc.authserver.auth.SessionManager;
 import nl.thedutchmc.authserver.runnables.RefreshToken;
-import nl.thedutchmc.authserver.session.SessionManager;
 
 public class TokenManager {
 
