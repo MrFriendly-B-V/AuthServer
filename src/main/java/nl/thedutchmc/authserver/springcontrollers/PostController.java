@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import nl.thedutchmc.authserver.App;
 import nl.thedutchmc.authserver.User;
 import nl.thedutchmc.authserver.auth.ApiManager;
 import nl.thedutchmc.authserver.auth.SessionManager;
@@ -33,7 +34,7 @@ public class PostController {
 	}
 	
 	@RequestMapping(value = "token", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-	public String token(@RequestParam String sessionId, @RequestParam String apiToken) {
+	public String token(@RequestParam(required = false) String sessionId, @RequestParam(required = false) String userId, @RequestParam String apiToken) {
 		if(!ApiManager.isApiTokenValid(apiToken)) {
 			JSONObject returnJson = new JSONObject();
 			returnJson.put("status", 403);
@@ -43,7 +44,15 @@ public class PostController {
 			return returnJson.toString();
 		}
 		
-		User user = new SessionManager().getUserForSessionId(sessionId);
+		User user = null;
+		if(sessionId != null) {
+			user = new SessionManager().getUserForSessionId(sessionId);
+		}
+		
+		if(userId != null) {
+			user = App.userMap.get(userId);
+		}
+		
 		if(user != null) {
 			JSONObject responseJson = new JSONObject(); 
 			
