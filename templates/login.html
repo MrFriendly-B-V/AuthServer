@@ -1,0 +1,16 @@
+<!--
+This file is used by:
+- get_oauth_grant.rs [/oauth/grant]
+- get_oauth_login.rs [/oauth/login]
+-->
+<html>
+    <head>
+        <title>Login</title>
+    </head>
+    <body>
+        <p>Please wait...</p>
+        <script>
+            window.location.href = '{{ redirect_url }}';
+        </script>
+    </body>
+</html>
