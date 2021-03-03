@@ -1,8 +1,19 @@
 use std::collections::HashMap;
+use serde::Deserialize;
+use crate::authentication::token_exchange_response::Response;
+use alcoholic_jwt::{JWKS, validate, Validation, token_kid};
+use crate::threads::discovery_document::JwksKeys;
+use crate::database::database::Database;
 
 #[allow(dead_code)]
 pub struct ExchangeCodeForToken {
     retries: usize
+}
+
+#[derive(Deserialize)]
+struct IdToken {
+    pub email:  String,
+    pub sub:    String
 }
 
 impl ExchangeCodeForToken {
@@ -12,51 +23,89 @@ impl ExchangeCodeForToken {
         }
     }
 
-    pub fn exchange(&mut self, code: String, client_id: String, client_secret: String, host: String, token_endpoint: String) {
-        std::thread::spawn(move || {
+    pub fn exchange(&mut self, code: String, client_id: String, client_secret: String, host: String, token_endpoint: String, jwks_keys: JwksKeys) -> Result<String, String> {
+        //Redirect uri is the same as where the user was originally redirected to after logging in, for some reason.
+        let redirect_uri = format!("https://{}/oauth/grant", host.clone().as_str());
 
-            println!("Exchanging!");
+        //Set the parameters, in a hashmap for easier understanding
+        let client_id_clone = client_id.clone();
+        let parameters: HashMap<&str, &str> = [
+            ("code", code.as_str()),
+            ("client_id", client_id_clone.as_str()),
+            ("client_secret", client_secret.as_str()),
+            ("redirect_uri", redirect_uri.as_str()),
+            ("grant_type", "authorization_code")
+        ].iter().cloned().collect();
 
-            let redirect_uri = format!("https://{}/oauth/token", host.clone().as_str());
+        //Build the URL
+        let url_query_parameters = crate::utils::hashmap_to_url(parameters);
+        let final_url = format!("{}{}", token_endpoint, url_query_parameters);
 
-            println!("{}", redirect_uri);
+        //Send the request
+        let req = reqwest::blocking::Client::new().post(&final_url).header("Content-Length", "0").send();
+        if req.is_err() {
+            return Err("Something went wrong getting information from Google".to_string());
+        }
 
-            let parameters: HashMap<&str, &str> = [
-                ("code", code.as_str()),
-                ("client_id", client_id.as_str()),
-                ("client_secret", client_secret.as_str()),
-                ("redirect_uri", redirect_uri.as_str()),
-                ("grant_type", "authorization_code")
-            ].iter().cloned().collect();
+        //Deserialize the response into a Response object
+        let req_unwrapped = req.unwrap();
+        let response: Response = req_unwrapped.json().unwrap();
 
-            let url_query_parameters = crate::utils::hashmap_to_url(parameters);
-            let final_url = format!("{}{}", token_endpoint, url_query_parameters);
+        //Validate the id_token
+        // 1. Validate signature
+        // 2. Validate the ISS claim (needs to be https://accounts.google.com or accounts.google.com)
+        // 3. Validate that the `aud` field is equal to our client id
+        // 4. Validate that the `exp` field has not yet passed (time)
+        // See: https://developers.google.com/identity/protocols/oauth2/openid-connect#validatinganidtoken
 
-            if final_url.eq("") {
-                eprintln!("Unable to determine full URL for exchanging access code for Token");
-                return;
-            }
+        //Quick decoding.
+        //JWT is built up like: <base64 header>.<base64 payload>.<signature>
+        //We're interested in the headers
+        let id_token = response.id_token.clone();
+        let id_parts: Vec<&str> = id_token.split(".").collect();
 
+        //JKWS can only be created by deserialization, for some reason. So we serialize our data, and serialize it back again /s
+        let jwks_serialized = serde_json::to_string(&jwks_keys).unwrap();
+        let jwks: JWKS = serde_json::from_str(&jwks_serialized).unwrap();
 
-            println!("FInal url: {}", final_url.clone());
+        //Set all the things we want to validate,
+        // - Issuer (step 2)
+        // - Audience (step 3)
+        // - Expiration (step 4)
+        let validations = vec![
+            Validation::Issuer("https://accounts.google.com".into()),
+            Validation::Audience(client_id.clone()),
+            Validation::NotExpired
+        ];
 
-            //Send the request
-            let req = reqwest::blocking::Client::new().post(&final_url).send();
-            if req.is_err() {
-                eprintln!("{:?}", req.err());
+        //Get the kid we are going to use, since there are multiple keys
+        let kid = token_kid(&id_token)
+            .expect("Failed to decode token headers")
+            .expect("No 'kid' claim present in token!");
 
-                /*if self.retries > 5 {
-                    eprintln!("POST request to Google to exchange a code for a token failed. Exceeded maximum amount of retries. Stopping here.");
-                    return;
-                } else {
-                    eprintln!("POST request to Google to exchange a code for a token failed. Retrying in 30 seconds!");
-                    self.retries +=1;
+        //Get the JWK for the selected kid
+        let jwk = jwks.find(&kid).expect("Specified key not found in set!");
 
-                    std::thread::sleep(Duration::from_secs(30));
+        //Validate the JWT
+        let jwt_validation_result = validate(&id_token, &jwk, validations);
+        if jwt_validation_result.is_err() {
+            eprintln!("JWT is not valid!");
+            return Err("JWT is not valid.".to_string());
+        }
 
-                    self.exchange(environment, code, client_id, client_secret, host, token_endpoint);
-                }*/
-            }
-        });
+        //Get the user ID from the JWT
+        let jwt_payload_base64: &str = id_parts[1];
+        let jwt_payload = String::from_utf8(base64::decode(jwt_payload_base64.as_bytes()).unwrap()).unwrap();
+
+        let id_token: IdToken = serde_json::from_str(&jwt_payload).unwrap();
+        //Send our data to the database
+        //the refresh_token is not always present, if it is not we do not want to override what is already in the database
+        let epoch_expires_in = chrono::Utc::now() + chrono::Duration::seconds(response.expires_in as i64);
+
+        unsafe {
+            crate::DATABASE.insert_grant(id_token.sub.clone(), response.access_token, response.id_token, response.scope, response.token_type, response.refresh_token, epoch_expires_in.timestamp());
+        }
+
+        Ok(id_token.sub)
     }
 }

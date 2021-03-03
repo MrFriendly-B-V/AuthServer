@@ -59,18 +59,22 @@ impl Environment {
         &self.host
     }
 
+    #[allow(dead_code)]
     pub fn get_mysql_host(&self) -> &String {
         &self.mysql_host
     }
 
+    #[allow(dead_code)]
     pub fn get_mysql_database(&self) -> &String {
         &self.mysql_database
     }
 
+    #[allow(dead_code)]
     pub fn get_mysql_username(&self) -> &String {
         &self.mysql_username
     }
 
+    #[allow(dead_code)]
     pub fn get_mysql_password(&self) -> &String {
         &self.mysql_password
     }

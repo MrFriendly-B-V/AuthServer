@@ -15,6 +15,8 @@ use crate::database::database::Database;
 use std::sync::{Arc, Mutex};
 use crate::threads::discovery_document::{DiscoveryDocumentValues, start_discovery_document_thread};
 
+pub static mut DATABASE: Database = crate::database::database::DATABASE;
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     println!("Running preflight checks...");
@@ -23,25 +25,24 @@ async fn main() -> std::io::Result<()> {
     println!("Preflight checks completed.");
     println!("Starting web server.");
 
-    //Database instance
-    let database = Arc::new(Mutex::new(Database::new(get_environment())));
-
     //Discovery Document thread
     let discovery_document_values = Arc::new(Mutex::new(DiscoveryDocumentValues::init_empty()));
     let discovery_document_values_for_dd_thread = discovery_document_values.clone();
     let _ = start_discovery_document_thread(discovery_document_values_for_dd_thread);
+
+    //Start a refresh token thread
+    threads::refresh_token::refresh_token_thread();
 
     HttpServer::new(move || {
         let mut tera = tera::Tera::new("templates/**/*").expect("Tera error!");
         tera.autoescape_on(vec![]);
 
         App::new()
-            .data(AppData::new(tera, get_environment(), database.clone(), discovery_document_values.clone()))
+            .data(AppData::new(tera, get_environment(), discovery_document_values.clone()))
 
             //Web endpoints
             .service(get_oauth_login::get_oauth_login)
             .service(get_oauth_grant::get_oauth_grant)
-            .service(post_oauth_token::post_oauth_token)
         })
         .bind(format!("{}:{}", environment.get_bind_address(), environment.get_port()))?
         .run()

@@ -30,7 +30,10 @@ pub async fn get_oauth_login(appdata: web::Data<crate::appdata::AppData>, reques
     //Generate a state token
     let state: String = rand::thread_rng().sample_iter(&rand::distributions::Alphanumeric).take(32).map(char::from).collect();
 
-    &appdata.database.lock().unwrap().set_return_uri_blocking(state.clone(), from.to_string());
+    unsafe {
+        crate::DATABASE.set_return_uri_blocking(state.clone(), from.to_string());
+    }
+    //&appdata.database.lock().unwrap().set_return_uri_blocking(state.clone(), from.to_string());
 
     let env = &appdata.environment;
     let google_client_id = env.get_google_client_id().clone();

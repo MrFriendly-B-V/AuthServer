@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -17,10 +17,10 @@ pub struct DiscoveryDocumentValues {
     pub jwks_keys:               JwksKeys
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize, Clone)]
 #[allow(dead_code)]
 pub struct JwksKeys {
-    keys: Vec<SignatureKey>
+    pub keys: Vec<SignatureKey>
 }
 
 impl Default for JwksKeys {
@@ -39,17 +39,17 @@ impl JwksKeys {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize, Clone)]
 #[allow(dead_code)]
 pub struct SignatureKey {
-    kid:    String,
-    kty:    String,
-    alg:    String,
-    n:      String,
+    pub kid:        String,
+    pub kty:        String,
+    pub alg:        String,
+    pub n:          String,
 
-    #[serde(rename(deserialize = "use"))]
-    key_uses:    String,
-    e:      String,
+    #[serde(rename(serialize = "use", deserialize = "use"))]
+    pub key_uses:   String,
+    pub e:          String,
 }
 
 impl DiscoveryDocumentValues {
