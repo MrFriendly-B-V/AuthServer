@@ -40,7 +40,6 @@ impl JwksKeys {
 }
 
 #[derive(Deserialize, Serialize, Clone)]
-#[allow(dead_code)]
 pub struct SignatureKey {
     pub kid:        String,
     pub kty:        String,

@@ -155,6 +155,62 @@ impl Database {
                     }).expect("Database error");
     }
 
+    pub fn get_session_id(&mut self, user_id: String) -> (Option<String>, bool) {
+        if self.pool.is_none() {
+            unsafe {
+                init_db(self);
+            }
+        }
+
+        let pool = self.pool.as_ref().unwrap();
+        let mut conn = pool.get_conn().unwrap();
+
+        let response = conn.exec::<Row, &str, Params>("SELECT session_id FROM sessions WHERE user_id = :user_id", params! {
+                            "user_id" => user_id
+                            });
+
+        if response.is_err() {
+            return (None, false);
+        }
+
+        let response_unwrapped = response.unwrap();
+        if response_unwrapped.clone().len() == 0 {
+            return (None, false);
+        }
+
+        let first = response_unwrapped.first().unwrap().get::<String, &str>("session_id");
+        return (first, true);
+    }
+
+    pub fn get_token(&mut self, user_id: String) -> Option<String> {
+        if self.pool.is_none() {
+            unsafe {
+                init_db(self);
+            }
+        }
+
+        let pool = self.pool.as_ref().unwrap();
+        let mut conn = pool.get_conn().unwrap();
+
+        let response = conn.exec::<Row, &str, Params>("SELECT access_token FROM grants WHERE user_id = :user_id", params! {
+                            "user_id" => user_id
+                            });
+
+        if response.is_err() {
+            return None;
+        }
+
+        let response_unwrapped = response.unwrap();
+
+        if response_unwrapped.clone().len() == 0 {
+            return None;
+        }
+
+        let first_row = response_unwrapped.first().unwrap().clone();
+
+        return Some(first_row.get::<String, &str>("access_token").unwrap());
+    }
+
     pub fn set_session(&mut self, user_id: String, session_id: String, expires_at: i64) {
         if self.pool.is_none() {
             unsafe {
@@ -187,7 +243,7 @@ impl Database {
                         }).expect("A database error occurred");
     }
 
-    pub fn get_session(&mut self, session_id: String) -> Vec<(String, i64)>{
+    pub fn get_session(&mut self, session_id: String) -> Vec<(String, i64)> {
         if self.pool.is_none() {
             unsafe {
                 init_db(self);
@@ -211,5 +267,28 @@ impl Database {
         };
 
         return result;
+    }
+
+    pub fn has_api_token(&mut self, api_token: String) -> bool {
+        if self.pool.is_none() {
+            unsafe {
+                init_db(self);
+            }
+        }
+
+        let pool = self.pool.as_ref().unwrap();
+        let mut conn = pool.get_conn().unwrap();
+
+        let sql_response = conn.exec::<Row, &str, Params>("SELECT api_token FROM api_tokens WHERE api_token = :api_token", params! {
+                            "api_token" => api_token
+                             });
+
+        if sql_response.is_err() {
+            return false;
+        }
+
+        let row = sql_response.unwrap();
+
+        return row.len() > 0;
     }
 }

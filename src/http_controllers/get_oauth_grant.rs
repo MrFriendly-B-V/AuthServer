@@ -1,6 +1,6 @@
 use actix_web::{get, web, HttpResponse, HttpRequest};
 use tera::Context;
-use crate::authentication::exchange_code_for_token::ExchangeCodeForToken;
+use crate::environment::Environment;
 
 #[get("/oauth/grant")]
 pub async fn get_oauth_grant(appdata: web::Data<crate::appdata::AppData>, request: HttpRequest) -> HttpResponse {
@@ -33,21 +33,31 @@ pub async fn get_oauth_grant(appdata: web::Data<crate::appdata::AppData>, reques
     let access_code = qstring.get("code").unwrap();
 
     //Spin up a thread to exchange the code for an access and ID token
-    let client_id = appdata.environment.get_google_client_id().clone();
-    let client_secret = appdata.environment.get_google_client_secret().clone();
-    let host = appdata.environment.get_host().clone();
+    let env = Environment::get_environment().unwrap();
+
+    let client_id = env.google_client_id;
+    let client_secret = env.google_client_secret;
+    let host = env.host;
     let google_endpoint = discovery_document.token_endpoint.clone();
     let jwks_keys = discovery_document.jwks_keys.clone();
 
-    let mut exchange_code_for_token = ExchangeCodeForToken::new();
-    let user_id = exchange_code_for_token.exchange(access_code.to_string(), client_id, client_secret, host, google_endpoint, jwks_keys);
+    let user_id = crate::authentication::exchange_code_for_token::exchange(access_code.to_string(), client_id, client_secret, host, google_endpoint, jwks_keys);
 
     if user_id.is_err() {
         return HttpResponse::BadRequest().json(user_id.err());
     }
 
     //Get a session_id
-    let session_id = crate::authentication::session_controller::generate_session(user_id.unwrap());
+    let has_session = unsafe {
+        crate::DATABASE.get_session_id(user_id.clone().unwrap())
+    };
+
+    let session_id =
+        if has_session.1 {
+            has_session.0.unwrap()
+        } else {
+            crate::authentication::session_controller::generate_session(user_id.unwrap())
+    };
 
     let return_uri_cloned = return_uri.as_ref().unwrap();
     let final_uri = if return_uri_cloned.clone().contains("?") {

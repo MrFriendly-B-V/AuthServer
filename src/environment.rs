@@ -1,87 +1,98 @@
-#[allow(dead_code)]
 pub struct Environment {
-    port:                   String,
-    bind_address:           String,
-    google_client_secret:   String,
-    google_client_id:       String,
-    host:                   String,
-    mysql_host:             String,
-    mysql_database:         String,
-    mysql_username:         String,
-    mysql_password:         String,
-    api_tokens:             Vec<String>
+    pub port:                   String,
+    pub bind_address:           String,
+    pub google_client_secret:   String,
+    pub google_client_id:       String,
+    pub host:                   String,
+    pub mysql_host:             String,
+    pub mysql_database:         String,
+    pub mysql_username:         String,
+    pub mysql_password:         String,
 }
 
 impl Environment {
 
-    pub fn new(port: String,
-               bind_address: String,
-               google_client_secret: String,
-               google_client_id: String,
-               host: String,
-               mysql_host: String,
-               mysql_database: String,
-               mysql_username: String,
-               mysql_password: String,
-               api_tokens: Vec<String>) -> Environment {
+    /**
+    Check whether all required environmental variables are set
 
-        Environment {
-            port,
-            bind_address,
-            google_client_secret,
-            google_client_id,
-            host,
-            mysql_host,
-            mysql_database,
-            mysql_username,
-            mysql_password,
-            api_tokens
+    @returns Returns true if all environmental variables are present. False if any are missing
+    */
+    pub fn check_environment() -> bool {
+        let env = Environment::get_environment();
+
+        return !env.is_none();
+    }
+
+    /**
+    Get an instance of Environment. This will be None if any environmental variables are missing.
+    */
+    pub fn get_environment() -> Option<Environment> {
+        use std::env;
+
+        let port = env::var("PORT");
+        if port.is_err() {
+            eprintln!("Environmental variable 'PORT' not set.");
+            return None;
         }
-    }
 
-    pub fn get_port(&self) -> &String {
-        &self.port
-    }
+        let bind_address = env::var("BIND_ADDRESS");
+        if bind_address.is_err() {
+            eprintln!("Environmental variable 'BIND_ADDRESS' not set.");
+            return None;
+        }
 
-    pub fn get_bind_address(&self) -> &String {
-        &self.bind_address
-    }
+        let google_client_secret = env::var("GOOGLE_CLIENT_SECRET");
+        if google_client_secret.is_err() {
+            eprintln!("Environmental variable 'GOOGLE_CLIENT_SECRET' not set.");
+            return None;
+        }
 
-    pub fn get_google_client_secret(&self) -> &String {
-        &self.google_client_secret
-    }
+        let google_client_id = env::var("GOOGLE_CLIENT_ID");
+        if google_client_id.is_err() {
+            eprintln!("Environmental variable 'GOOGLE_CLIENT_ID' not set.");
+            return None;
+        }
 
-    pub fn get_google_client_id(&self) -> &String {
-        &self.google_client_id
-    }
+        let host = env::var("HOST");
+        if host.is_err() {
+            eprintln!("Environmental variable 'HOST' not set.");
+            return None;
+        }
 
-    pub fn get_host(&self) -> &String {
-        &self.host
-    }
+        let mysql_host = env::var("MYSQL_HOST");
+        if mysql_host.is_err() {
+            eprintln!("Environmental variable 'MYSQL_HOST' not set.");
+            return None;
+        }
 
-    #[allow(dead_code)]
-    pub fn get_mysql_host(&self) -> &String {
-        &self.mysql_host
-    }
+        let mysql_database = env::var("MYSQL_DATABASE");
+        if mysql_database.is_err() {
+            eprintln!("Environmental variable 'MYSQL_DATABASE' not set.");
+            return None;
+        }
 
-    #[allow(dead_code)]
-    pub fn get_mysql_database(&self) -> &String {
-        &self.mysql_database
-    }
+        let mysql_username = env::var("MYSQL_USERNAME");
+        if mysql_username.is_err() {
+            eprintln!("Environmental variable 'MYSQL_USERNAME' not set.");
+            return None;
+        }
 
-    #[allow(dead_code)]
-    pub fn get_mysql_username(&self) -> &String {
-        &self.mysql_username
-    }
+        let mysql_password = env::var("MYSQL_PASSWORD");
+        if mysql_password.is_err() {
+            eprintln!("Environmental variable 'MYSQL_PASSWORD' not set.");
+            return None;
+        }
 
-    #[allow(dead_code)]
-    pub fn get_mysql_password(&self) -> &String {
-        &self.mysql_password
-    }
-
-    #[allow(dead_code)]
-    //TODO this has no uses, yet
-    pub fn get_api_tokens(&self) -> &Vec<String> {
-        &self.api_tokens
+        Some(Environment {
+            port: port.unwrap(),
+            bind_address: bind_address.unwrap(),
+            google_client_secret: google_client_secret.unwrap(),
+            google_client_id: google_client_id.unwrap(),
+            host: host.unwrap(),
+            mysql_host: mysql_host.unwrap(),
+            mysql_database: mysql_database.unwrap(),
+            mysql_username: mysql_username.unwrap(),
+            mysql_password: mysql_password.unwrap(),
+        })
     }
 }

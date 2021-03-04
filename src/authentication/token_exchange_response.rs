@@ -1,7 +1,6 @@
 use serde::Deserialize;
 
 #[derive(Deserialize)]
-#[allow(dead_code)]
 pub struct Response {
     pub access_token:   String,
     pub expires_in:     i16,

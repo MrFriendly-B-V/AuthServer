@@ -25,11 +25,11 @@ pub fn refresh_token_thread() {
                let user_id = item.0;
                let refresh_token = item.1;
 
-               let environment = crate::get_environment();
+               let environment = crate::Environment::get_environment().unwrap();
 
                let parameters: HashMap<&str, &str> = [
-                   ("client_id", environment.get_google_client_id().as_str()),
-                   ("client_secret", environment.get_google_client_secret().as_str()),
+                   ("client_id", environment.google_client_id.as_str()),
+                   ("client_secret", environment.google_client_secret.as_str()),
                    ("refresh_token", refresh_token.as_str()),
                    ("grant_type", "refresh_token")
                ].iter().cloned().collect();

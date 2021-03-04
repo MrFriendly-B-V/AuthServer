@@ -1,6 +1,7 @@
 /**
 Get a user_id for a session_id. Will not check the expires_at of this session!
 */
+#[allow(dead_code)]
 pub fn get_user_for_session(session_id: String) -> Result<String, bool> {
     let users: Vec<(String, i64)> = unsafe {
         crate::DATABASE.get_session(session_id)
